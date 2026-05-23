@@ -1,19 +1,24 @@
-# Edel Luxe AI Manager
+# ACOPES AI
 
-AI-powered Etsy SEO & Listing Optimization Dashboard.
+AI-powered Etsy SEO, optimization and marketplace automation platform.
 
 ## Features
-- Etsy listing optimization
-- AI-generated SEO titles
-- 13 smart Etsy tags
-- CSV bulk processing
-- CTR title analysis
-- Etsy dashboard analytics
+
+- AI Etsy SEO optimization
+- Smart title generation
+- 13-tag Etsy engine
+- CTR optimization analysis
+- Thumbnail optimization workflow
+- Batch listing processing
+- Etsy performance analytics
+- Draft-safe publishing system
 
 ## Built For
-Handmade sellers, Etsy shops, and eCommerce brands.
+
+Etsy sellers, agencies, handmade brands and marketplace growth teams.
 
 ## Status
+
 Beta Version 🚀
 
 
