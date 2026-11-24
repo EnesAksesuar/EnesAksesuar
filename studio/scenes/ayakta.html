@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Ayakta</title>
+<style>
+  @font-face{font-family:'InterV';src:url('../lib/Inter.ttf') format('truetype-variations');font-weight:100 900;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1080px;height:1920px;overflow:hidden;background:#04060c}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden}
+  canvas{position:absolute;inset:0;display:block}
+  #vig{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse 72% 56% at 50% 46%,rgba(0,0,0,0) 0%,rgba(0,0,0,.33) 58%,rgba(0,0,0,.85) 100%)}
+  #grain{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay}
+  #ui{position:absolute;inset:0;pointer-events:none;font-family:'InterV','DejaVu Sans',sans-serif;color:#fff}
+  .beat{position:absolute;left:88px;right:88px;text-align:center;opacity:0;
+    text-shadow:0 2px 46px rgba(0,0,0,.9),0 1px 4px rgba(0,0,0,.7)}
+  .xl{font-weight:800;font-size:104px;line-height:1.03;letter-spacing:-4.5px}
+  .lg{font-weight:800;font-size:82px;line-height:1.08;letter-spacing:-3px}
+  .md{font-weight:700;font-size:66px;line-height:1.18;letter-spacing:-2px}
+  .sm{font-weight:500;font-size:56px;line-height:1.3;letter-spacing:-1px;color:#e8edf8}
+  .amber{color:#ffc46b} .dim{color:#93a4c2}
+  #handle{position:absolute;bottom:126px;left:0;right:0;text-align:center;
+    font-weight:600;font-size:34px;letter-spacing:4px;color:rgba(255,255,255,.42);opacity:0;
+    font-family:'InterV','DejaVu Sans',sans-serif}
+</style></head>
+<body><div id="stage">
+<canvas id="c"></canvas><div id="vig"></div><canvas id="grain"></canvas>
+<div id="ui">
+  <div class="beat" id="b0" style="top:250px"><div class="xl">Herkesin<br>yanında oldun.</div></div>
+  <div class="beat" id="b1" style="top:252px"><div class="lg">Hepsini ayakta<br>tuttun.</div></div>
+  <div class="beat" id="b2" style="top:256px"><div class="sm">Onlar yükseldi.<br><span style="color:#fff;font-weight:800">Sen hep “ben iyiyim” dedin.</span></div></div>
+  <div class="beat" id="b3" style="top:240px"><div class="md">Peki ya senin<br>birine ihtiyacın olduğunda?</div></div>
+  <div class="beat" id="b4" style="top:258px"><div class="lg amber">Bugün sıra sende.</div></div>
+  <div class="beat" id="b5" style="top:244px"><div class="md">Kendine dönmek,<br>kimseyi bırakmak değildir.</div></div>
+  <div class="beat" id="b6" style="top:256px"><div class="sm">Sen en son kendine<br>ne zaman baktın?</div></div>
+  <div id="handle">ATELIER BY VELMORA</div>
+</div></div>
+<script type="module">
+import * as THREE from '../lib/three.module.js';
+const W=1080,H=1920,FPS=30,DUR=18.0;
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(W,H,false); renderer.setPixelRatio(1);
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x04060c,0.017);
+const camera=new THREE.PerspectiveCamera(50,W/H,0.1,300);
+
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(500,500),
+  new THREE.MeshStandardMaterial({color:0x080c14,roughness:0.3,metalness:0.76}));
+floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+const horizon=new THREE.Mesh(new THREE.PlaneGeometry(120,0.09),
+  new THREE.MeshBasicMaterial({color:0x5b78b8,transparent:true,opacity:0.3,
+  blending:THREE.AdditiveBlending,depthWrite:false}));
+horizon.position.set(0,0.02,0); horizon.rotation.x=-Math.PI/2; scene.add(horizon);
+const pc=document.createElement('canvas'); pc.width=pc.height=512;
+(function(){const x=pc.getContext('2d');
+ const gr=x.createRadialGradient(256,256,0,256,256,256);
+ gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.42,'rgba(255,255,255,.34)');
+ gr.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=gr; x.fillRect(0,0,512,512);})();
+const poolTex=new THREE.CanvasTexture(pc);
+const pool=new THREE.Mesh(new THREE.PlaneGeometry(46,30),
+  new THREE.MeshBasicMaterial({map:poolTex,transparent:true,opacity:0.16,color:0x4f6ea8,
+    blending:THREE.AdditiveBlending,depthWrite:false}));
+pool.rotation.x=-Math.PI/2; pool.position.set(0,0.008,-1.5); scene.add(pool);
+
+scene.add(new THREE.HemisphereLight(0x27375a,0x04060c,0.5));
+const key=new THREE.DirectionalLight(0xc3d6ff,1.15);
+key.position.set(-10,18,11); key.castShadow=true; key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near=1; key.shadow.camera.far=80;
+key.shadow.camera.left=-30;key.shadow.camera.right=30;key.shadow.camera.top=30;key.shadow.camera.bottom=-30;
+key.shadow.bias=-0.0008; scene.add(key);
+const rim=new THREE.DirectionalLight(0x7390db,0.75); rim.position.set(13,9,-13); scene.add(rim);
+const selfLight=new THREE.PointLight(0xffb45c,0,60,2.0); selfLight.position.set(0,5,4.5); scene.add(selfLight);
+
+function roundedBox(w,h,d,r,seg){
+  const s=new THREE.Shape(),x=-w/2,y=-d/2;
+  s.moveTo(x,y+r); s.lineTo(x,y+d-r); s.quadraticCurveTo(x,y+d,x+r,y+d);
+  s.lineTo(x+w-r,y+d); s.quadraticCurveTo(x+w,y+d,x+w,y+d-r);
+  s.lineTo(x+w,y+r); s.quadraticCurveTo(x+w,y,x+w-r,y); s.lineTo(x+r,y);
+  s.quadraticCurveTo(x,y,x,y+r);
+  const g=new THREE.ExtrudeGeometry(s,{depth:h,bevelEnabled:true,bevelThickness:0.05,
+    bevelSize:0.05,bevelSegments:3,curveSegments:seg||6});
+  g.rotateX(-Math.PI/2); g.computeVertexNormals(); return g;
+}
+
+const ME=3;
+const TARGET=[5.6,6.9,6.2,1.05,6.6,5.9,7.2];   // index 3 = you, the lowest
+const RISE_IN=[0.55,1.05,1.55,0,2.05,2.55,3.05];
+const DEEP=new THREE.Color(0x16213a), COLD=new THREE.Color(0x44649c), HOT=new THREE.Color(0xffb257);
+const GAP=1.82, bars=[];
+for(let i=0;i<7;i++){
+  const mat=new THREE.MeshStandardMaterial({color:DEEP.clone(),roughness:0.25,metalness:0.58,
+    emissive:new THREE.Color(0x000000)});
+  const m=new THREE.Mesh(roundedBox(1.22,1,1.22,0.27),mat);
+  m.castShadow=true; m.receiveShadow=true; m.position.x=(i-ME)*GAP; scene.add(m);
+  const rmat=new THREE.MeshBasicMaterial({color:DEEP.clone(),transparent:true,opacity:0.0,
+    depthWrite:false,side:THREE.DoubleSide});
+  const rm=new THREE.Mesh(m.geometry,rmat); rm.position.x=(i-ME)*GAP; rm.scale.y=-1; scene.add(rm);
+  bars.push({mesh:m,mat,refl:rm,rmat,target:TARGET[i],t0:RISE_IN[i]});
+}
+
+const curveMat=new THREE.LineBasicMaterial({color:0xffc980,transparent:true,opacity:0});
+const CP=150, cpos=new Float32Array(CP*3);
+const curveGeo=new THREE.BufferGeometry();
+curveGeo.setAttribute('position',new THREE.BufferAttribute(cpos,3));
+scene.add(new THREE.Line(curveGeo,curveMat));
+
+const N=340, dg=new THREE.BufferGeometry(), dp=new Float32Array(N*3), dr=[];
+for(let i=0;i<N;i++){ dp[i*3]=(Math.random()-0.5)*36; dp[i*3+1]=Math.random()*20;
+  dp[i*3+2]=(Math.random()-0.5)*28; dr.push({s:0.1+Math.random()*0.34,p:Math.random()*6.283}); }
+dg.setAttribute('position',new THREE.BufferAttribute(dp,3));
+const dust=new THREE.Points(dg,new THREE.PointsMaterial({color:0x9fc0ff,size:0.058,
+  transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+scene.add(dust); const dustBase=dp.slice();
+
+const gc=document.getElementById('grain'); gc.width=W; gc.height=H;
+(function(){const x=gc.getContext('2d'),id=x.createImageData(W,H);
+ for(let i=0;i<id.data.length;i+=4){const v=Math.random()*255;id.data[i]=id.data[i+1]=id.data[i+2]=v;id.data[i+3]=255;}
+ x.putImageData(id,0,0);})();
+
+const easeIO=t=>t<0?0:t>1?1:(t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2);
+const seg=(t,a,b)=>(t-a)/(b-a);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+function beat(t,a,b){const fi=0.46,fo=0.36;
+  if(t<a) return 0; if(t<a+fi) return easeIO(seg(t,a,a+fi));
+  if(t<b) return 1; if(t<b+fo) return 1-easeIO(seg(t,b,b+fo)); return 0;}
+const BEATS=[['b0',0.25,2.20],['b1',2.55,4.60],['b2',4.95,7.60],['b3',7.95,10.60],
+             ['b4',10.95,12.70],['b5',13.05,15.40],['b6',15.75,17.70]];
+const els={}; BEATS.forEach(b=>els[b[0]]=document.getElementById(b[0]));
+const handleEl=document.getElementById('handle');
+
+window.renderFrame=function(t){
+  // the turn: your bar begins to rise at 10.9s
+  const turn=easeIO(seg(t,10.9,15.2));
+  const lonely=clamp(easeIO(seg(t,7.6,9.2))-easeIO(seg(t,10.9,12.2)),0,1);
+  const push=easeIO(seg(t,0,17.5));
+  const wide=easeIO(seg(t,13.2,17.4));
+
+  camera.position.set(
+    -0.5+Math.sin(t*0.16)*0.9+wide*0.6,
+     6.2-push*0.6-lonely*2.0+wide*1.7+Math.sin(t*0.22)*0.15,
+    30.5-push*3.0-lonely*5.0+wide*4.6);
+  camera.lookAt(0+wide*0.2, 2.2-lonely*0.5+wide*0.3, 0);
+  camera.updateMatrixWorld();
+
+  for(let i=0;i<7;i++){
+    const b=bars[i]; let h, warmth, g;
+    if(i===ME){
+      g=easeIO(seg(t,0.1,1.0));
+      h=Math.max(0.0001, b.target*g + (6.35-b.target)*turn);
+      warmth=turn;
+    }else{
+      g=easeIO(seg(t,b.t0,b.t0+1.45));
+      h=Math.max(0.0001,b.target*g);
+      warmth=clamp(easeIO(seg(t,b.t0+0.5,b.t0+2.0)),0,1)*(1-turn*0.42);
+    }
+    b.mesh.scale.y=h;
+    const base=DEEP.clone().lerp(COLD,clamp(g,0,1)*0.9);
+    b.mat.color.copy(base.lerp(HOT,warmth*(i===ME?0.80:0.66)));
+    const em=(i===ME? warmth*0.42 : warmth*0.17);
+    b.mat.emissive.setRGB(HOT.r*em, HOT.g*em*0.74, HOT.b*em*0.34);
+    if(i===ME){const pz=lonely*(0.10+0.10*Math.sin(t*2.0));
+      b.mat.emissive.r+=pz*0.30; b.mat.emissive.g+=pz*0.52; b.mat.emissive.b+=pz*0.95;}
+    b.refl.scale.y=-h;
+    b.rmat.color.copy(b.mat.color).multiplyScalar(0.85);
+    b.rmat.opacity=clamp(g,0,1)*0.30;
+  }
+
+  const cOp=easeIO(seg(t,14.2,16.2))*clamp(1-easeIO(seg(t,17.4,18.0)),0,1);
+  curveMat.opacity=cOp*0.8;
+  if(cOp>0.001){
+    const pts=bars.map((b,i)=>new THREE.Vector3((i-ME)*GAP,b.mesh.scale.y+0.28,0));
+    const cat=new THREE.CatmullRomCurve3(pts,false,'catmullrom',0.42);
+    const rev=easeIO(seg(t,14.3,16.8));
+    for(let k=0;k<CP;k++){const u=Math.min(k/(CP-1),Math.max(0.0001,rev));
+      const p=cat.getPoint(u); cpos[k*3]=p.x; cpos[k*3+1]=p.y; cpos[k*3+2]=p.z;}
+    curveGeo.attributes.position.needsUpdate=true;
+  }
+
+  pool.material.opacity=0.13+turn*0.14;
+  pool.material.color.setRGB(0.31+turn*0.69,0.43+turn*0.28,0.66-turn*0.28);
+  horizon.material.opacity=0.26+turn*0.30;
+  horizon.material.color.setRGB(0.36+turn*0.62,0.47+turn*0.26,0.72-turn*0.28);
+  selfLight.intensity=turn*3.4; selfLight.position.set(0,3+turn*5,4.5);
+  key.intensity=1.15-turn*0.22; rim.intensity=0.75+turn*0.3;
+  scene.fog.density=0.017-turn*0.0045;
+  renderer.toneMappingExposure=1.0+turn*0.17;
+
+  dust.material.opacity=0.09+easeIO(seg(t,1,6))*0.2+turn*0.16;
+  dust.material.color.setRGB(0.62+turn*0.38,0.75+turn*0.17,1.0-turn*0.32);
+  for(let i=0;i<N;i++){
+    dp[i*3+1]=dustBase[i*3+1]+Math.sin(t*dr[i].s+dr[i].p)*0.85+t*0.085;
+    if(dp[i*3+1]>21) dp[i*3+1]-=21;
+    dp[i*3]=dustBase[i*3]+Math.cos(t*dr[i].s*0.6+dr[i].p)*0.5;
+  }
+  dg.attributes.position.needsUpdate=true;
+
+  BEATS.forEach(([id,a,b])=>{const o=beat(t,a,b);
+    els[id].style.opacity=o.toFixed(3);
+    els[id].style.transform='translateY('+((1-o)*24).toFixed(2)+'px)';});
+  handleEl.style.opacity=(easeIO(seg(t,15.9,16.9))*clamp(1-easeIO(seg(t,17.75,18.0)),0,1)*0.88).toFixed(3);
+  gc.style.opacity=(0.05+0.012*Math.sin(t*13.7)).toFixed(4);
+  renderer.render(scene,camera);
+};
+window.META={W,H,FPS,DUR}; window.READY=true;
+</script></body></html>
