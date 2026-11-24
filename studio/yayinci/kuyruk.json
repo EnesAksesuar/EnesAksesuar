@@ -1,0 +1,19 @@
+{
+  "saat": "20:30",
+  "zaman_dilimi": "Europe/Istanbul",
+  "kuyruk": [
+    {
+      "id": "yildiz",
+      "dosya": "out/yildiz.mp4",
+      "kapak": "out/yildiz-kapak.jpg",
+      "durum": "bekliyor",
+      "youtube": {
+        "baslik": "Kanındaki Demir Bir Yıldızdan Geliyor #shorts",
+        "aciklama": "Vücudundaki demir atomları 5 milyar yıl önce patlayan bir yıldızın çekirdeğinde yapıldı.\nO patlamadan savrulan tozdan bir gezegen oldu, o gezegen de seni.\nYorulduğunda hatırla: sen bir yıldızın arta kalanısın.",
+        "etiketler": ["bilim", "uzay", "evren", "biliyormuydun", "shorts", "astronomi"],
+        "gizlilik": "public",
+        "kategori": "27"
+      }
+    }
+  ]
+}
