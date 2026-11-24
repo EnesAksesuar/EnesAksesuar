@@ -20,6 +20,7 @@ const server=http.createServer((req,res)=>{
   const browser=await chromium.launch({args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader',
     '--enable-unsafe-swiftshader','--disable-lcd-text','--font-render-hinting=none']});
   const page=await browser.newPage({viewport:{width:1080,height:1920},deviceScaleFactor:1});
+  page.setDefaultTimeout(180000);
   page.on('console',m=>{if(m.type()==='error')console.log('PAGE ERR:',m.text());});
   page.on('pageerror',e=>console.log('PAGE EXC:',e.message));
   await page.goto(`http://127.0.0.1:8731/scenes/${scene}.html`,{waitUntil:'load'});
@@ -32,7 +33,7 @@ const server=http.createServer((req,res)=>{
   for(let f=0;f<total;f++){
     await page.evaluate(t=>window.renderFrame(t), f/meta.FPS);
     await page.screenshot({path:path.join(FRAMES,String(f).padStart(5,'0')+'.jpg'),
-      type:'jpeg',quality:96});
+      type:'jpeg',quality:94,timeout:180000});
     if(f%60===0) console.log(`  ${f}/${total}  ${((Date.now()-t0)/1000).toFixed(0)}s`);
   }
   console.log(`frames done in ${((Date.now()-t0)/1000).toFixed(0)}s -> ${FRAMES}`);

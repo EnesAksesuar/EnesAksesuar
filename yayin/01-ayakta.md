@@ -1,3 +1,5 @@
+> **ARŞİV — yayınlanmayacak.** Brief değişti: kanal @waithowreal, format görsel şölen + ses.
+
 # Pilot 01 — "Ayakta"
 
 **Dosya:** `out/ayakta.mp4` · 1080×1920 · 18 sn · sessiz (uygulama içi trend ses eklenecek)
