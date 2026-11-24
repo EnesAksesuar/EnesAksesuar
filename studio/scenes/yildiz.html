@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Yildiz</title>
+<style>
+  @font-face{font-family:'InterV';src:url('../lib/Inter.ttf') format('truetype-variations');font-weight:100 900;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1080px;height:1920px;overflow:hidden;background:#000}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:#000}
+  canvas{position:absolute;inset:0;display:block}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  #vig{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse 78% 60% at 50% 46%,rgba(0,0,0,0) 0%,rgba(0,0,0,.28) 62%,rgba(0,0,0,.8) 100%)}
+  #grain{position:absolute;inset:0;pointer-events:none;opacity:.045;mix-blend-mode:overlay}
+  #ui{position:absolute;inset:0;pointer-events:none;font-family:'InterV','DejaVu Sans',sans-serif;color:#fff}
+  .cap{position:absolute;left:80px;right:80px;text-align:center;opacity:0;
+       text-shadow:0 2px 40px rgba(0,0,0,.95),0 0 90px rgba(0,0,0,.8),0 1px 4px rgba(0,0,0,.8)}
+  .k1{font-weight:800;font-size:92px;line-height:1.06;letter-spacing:-3.5px}
+  .k2{font-weight:700;font-size:70px;line-height:1.14;letter-spacing:-2.4px}
+  .k3{font-weight:600;font-size:60px;line-height:1.22;letter-spacing:-1.6px;color:#eef2fb}
+  .amber{color:#ffb257} .hot{color:#fff2d8}
+  #handle{position:absolute;bottom:120px;left:0;right:0;text-align:center;font-weight:600;
+    font-size:33px;letter-spacing:5px;color:rgba(255,255,255,.4);opacity:0;
+    font-family:'InterV','DejaVu Sans',sans-serif}
+</style></head>
+<body><div id="stage">
+<canvas id="c"></canvas><div id="flash"></div><div id="vig"></div><canvas id="grain"></canvas>
+<div id="ui">
+  <div class="cap" id="c1" style="top:244px"><div class="k1">Kanındaki demir,<br><span class="amber">bir yıldızın son saniyesinde</span><br>yapıldı.</div></div>
+  <div class="cap" id="c2" style="top:262px"><div class="k2">5 milyar yıl önce,<br>dev bir yıldızın yakıtı bitti.</div></div>
+  <div class="cap" id="c3" style="top:276px"><div class="k2">Çekirdeği kendi<br>ağırlığıyla çöktü.</div></div>
+  <div class="cap" id="c4" style="top:290px"><div class="k1 hot">Ve patladı.</div></div>
+  <div class="cap" id="c5" style="top:268px"><div class="k2">O son saniyede yapılan demir<br>uzaya savruldu.</div></div>
+  <div class="cap" id="c6" style="top:280px"><div class="k2">Tozdan bir gezegen oldu.</div></div>
+  <div class="cap" id="c7" style="top:272px"><div class="k2">Ve bugün,<br><span class="amber">senin kalbinde atıyor.</span></div></div>
+  <div class="cap" id="c8" style="top:258px"><div class="k2">Yorulduğunda hatırla:<br><span class="amber" style="font-weight:800">sen bir yıldızın<br>arta kalanısın.</span></div></div>
+  <div id="handle">@waithowreal</div>
+</div></div>
+<script type="module">
+import * as THREE from '../lib/three.module.js';
+const W=1080,H=1920,FPS=30,DUR=24.6;
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(W,H,false); renderer.setPixelRatio(1);
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(46,W/H,0.05,4000);
+
+// ---------- textures
+function radialTex(stops,size){
+  const cv=document.createElement('canvas'); cv.width=cv.height=size||256;
+  const x=cv.getContext('2d'); const r=cv.width/2;
+  const g=x.createRadialGradient(r,r,0,r,r,r);
+  stops.forEach(s=>g.addColorStop(s[0],s[1]));
+  x.fillStyle=g; x.fillRect(0,0,cv.width,cv.height);
+  return new THREE.CanvasTexture(cv);
+}
+const dotTex=radialTex([[0,'rgba(255,255,255,1)'],[0.22,'rgba(255,255,255,.85)'],
+  [0.55,'rgba(255,255,255,.22)'],[1,'rgba(255,255,255,0)']],128);
+const coronaTex=radialTex([[0,'rgba(255,255,255,.95)'],[0.18,'rgba(255,214,150,.75)'],
+  [0.42,'rgba(255,140,50,.30)'],[0.72,'rgba(120,40,10,.09)'],[1,'rgba(0,0,0,0)']],512);
+function noiseTex(size,fn){
+  const cv=document.createElement('canvas'); cv.width=size; cv.height=size/2;
+  const x=cv.getContext('2d'); const id=x.createImageData(cv.width,cv.height);
+  for(let j=0;j<cv.height;j++)for(let i=0;i<cv.width;i++){
+    const o=(j*cv.width+i)*4; const c=fn(i/cv.width,j/cv.height);
+    id.data[o]=c[0]; id.data[o+1]=c[1]; id.data[o+2]=c[2]; id.data[o+3]=255;}
+  x.putImageData(id,0,0); const tx=new THREE.CanvasTexture(cv);
+  tx.wrapS=THREE.RepeatWrapping; return tx;}
+function vnoise(x,y,sd){ // cheap value noise
+  let v=0,a=1,f=1;
+  for(let o=0;o<4;o++){
+    const xi=x*f*7+sd, yi=y*f*7+sd;
+    const s1=Math.sin(xi*12.9898+yi*78.233)*43758.5453;
+    const s2=Math.sin(xi*39.3468+yi*11.1357)*24634.6345;
+    v+=a*((s1-Math.floor(s1))*0.5+(s2-Math.floor(s2))*0.5);
+    a*=0.5; f*=2.1;}
+  return v/1.875;}
+function smoothN(x,y,sd,sc){
+  let t=0,w=0;
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+    t+=vnoise(x+dx/sc,y+dy/sc,sd); w++;}
+  return t/w;}
+const starTex=noiseTex(512,(u,v)=>{
+  const n=smoothN(u*3,v*3,1.7,90);
+  const g=0.72+n*0.56;
+  return [Math.min(255,255*g),Math.min(255,206*g*0.96),Math.min(255,150*g*0.8)];});
+const planetTex=noiseTex(512,(u,v)=>{
+  const n=smoothN(u*1.15,v*1.15,4.3,26);
+  const land=n>0.52;
+  const sh=0.55+n*0.7;
+  return land?[Math.min(255,46*sh),Math.min(255,74*sh),Math.min(255,52*sh)]
+             :[Math.min(255,16*sh),Math.min(255,42*sh),Math.min(255,86*sh)];});
+const shockTex=radialTex([[0,'rgba(0,0,0,0)'],[0.845,'rgba(0,0,0,0)'],[0.892,'rgba(150,190,255,.40)'],
+  [0.930,'rgba(255,250,240,1)'],[0.962,'rgba(170,200,255,.30)'],[1,'rgba(0,0,0,0)']],512);
+
+// ---------- deep starfield
+const SF=2600, sfg=new THREE.BufferGeometry();
+const sfp=new Float32Array(SF*3), sfc=new Float32Array(SF*3), sfs=new Float32Array(SF);
+let rs=20250101; const rnd=()=>{rs=(rs*1664525+1013904223)%4294967296; return rs/4294967296;};
+for(let i=0;i<SF;i++){
+  const u=rnd()*2-1, th=rnd()*Math.PI*2, r=420+rnd()*900;
+  const s=Math.sqrt(1-u*u);
+  sfp[i*3]=r*s*Math.cos(th); sfp[i*3+1]=r*u*0.75; sfp[i*3+2]=r*s*Math.sin(th);
+  const w=0.62+rnd()*0.38;
+  sfc[i*3]=w; sfc[i*3+1]=w*(0.86+rnd()*0.14); sfc[i*3+2]=1.0;
+  sfs[i]=1.4+rnd()*4.6;
+}
+sfg.setAttribute('position',new THREE.BufferAttribute(sfp,3));
+sfg.setAttribute('color',new THREE.BufferAttribute(sfc,3));
+const starfield=new THREE.Points(sfg,new THREE.PointsMaterial({size:4.4,map:dotTex,
+  vertexColors:true,transparent:true,opacity:0.0,blending:THREE.AdditiveBlending,
+  depthWrite:false,sizeAttenuation:true}));
+scene.add(starfield);
+
+// ---------- the star body
+const starMat=new THREE.MeshBasicMaterial({color:0xffb45a,map:starTex});
+const starMesh=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),starMat);
+scene.add(starMesh);
+const corona=new THREE.Sprite(new THREE.SpriteMaterial({map:coronaTex,transparent:true,
+  opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,color:0xffffff}));
+scene.add(corona);
+
+// ---------- shockwave
+const shock=new THREE.Sprite(new THREE.SpriteMaterial({map:shockTex,transparent:true,
+  opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+scene.add(shock);
+
+// ---------- the matter: star surface -> supernova -> disk -> planet
+const N=14000;
+const pg=new THREE.BufferGeometry();
+const pos=new Float32Array(N*3), col=new Float32Array(N*3), psz=new Float32Array(N);
+const dir=new Float32Array(N*3);   // explosion direction
+const spd=new Float32Array(N);     // explosion speed
+const dsk=new Float32Array(N*3);   // disk slot: radius, angle, height
+const pln=new Float32Array(N*3);   // point on planet sphere
+const jit=new Float32Array(N);
+for(let i=0;i<N;i++){
+  const u=rnd()*2-1, th=rnd()*Math.PI*2, s=Math.sqrt(1-u*u);
+  dir[i*3]=s*Math.cos(th); dir[i*3+1]=u; dir[i*3+2]=s*Math.sin(th);
+  spd[i]=5.0+Math.pow(rnd(),1.7)*22.0;
+  const rr=9+Math.pow(rnd(),0.62)*30;
+  dsk[i*3]=rr; dsk[i*3+1]=rnd()*Math.PI*2; dsk[i*3+2]=(rnd()-0.5)*rr*0.11;
+  const u2=rnd()*2-1, t2=rnd()*Math.PI*2, s2=Math.sqrt(1-u2*u2);
+  pln[i*3]=s2*Math.cos(t2); pln[i*3+1]=u2; pln[i*3+2]=s2*Math.sin(t2);
+  psz[i]=0.55+rnd()*1.5; jit[i]=rnd();
+}
+pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+pg.setAttribute('color',new THREE.BufferAttribute(col,3));
+const pts=new THREE.Points(pg,new THREE.PointsMaterial({size:0.54,map:dotTex,
+  vertexColors:true,transparent:true,opacity:0,blending:THREE.AdditiveBlending,
+  depthWrite:false,sizeAttenuation:true}));
+scene.add(pts);
+
+// ---------- the planet
+const planetMat=new THREE.MeshStandardMaterial({color:0xffffff,map:planetTex,
+  transparent:true,opacity:0,roughness:0.92,metalness:0.0});
+const sunLight=new THREE.DirectionalLight(0xfff0dc,2.6); sunLight.position.set(-9,4.5,7);
+scene.add(sunLight); scene.add(new THREE.AmbientLight(0x2b3f66,0.42));
+const planet=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),planetMat);
+scene.add(planet);
+const atmo=new THREE.Sprite(new THREE.SpriteMaterial({map:coronaTex,transparent:true,
+  opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,color:0x6fa8ff}));
+scene.add(atmo);
+const heart=new THREE.Sprite(new THREE.SpriteMaterial({map:coronaTex,transparent:true,
+  opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,color:0xff8a4a}));
+scene.add(heart);
+
+// ---------- grain
+const gc=document.getElementById('grain'); gc.width=W; gc.height=H;
+(function(){const x=gc.getContext('2d'),id=x.createImageData(W,H);
+ for(let i=0;i<id.data.length;i+=4){const v=Math.random()*255;
+   id.data[i]=id.data[i+1]=id.data[i+2]=v; id.data[i+3]=255;}
+ x.putImageData(id,0,0);})();
+
+// ---------- timing (from the real voiceover durations)
+const T={reveal:4.15, collapse:7.70, boom:10.62, drift:11.70,
+         disk:15.00, form:16.95, heart:19.30, outro:23.45};
+const CAPS=[['c1',0.20,3.90],['c2',4.05,7.45],['c3',7.60,10.00],['c4',10.25,11.35],
+            ['c5',11.65,14.85],['c6',15.00,16.88],['c7',17.05,19.35],['c8',19.60,23.45]];
+const els={}; CAPS.forEach(c=>els[c[0]]=document.getElementById(c[0]));
+const flashEl=document.getElementById('flash'), handleEl=document.getElementById('handle');
+
+const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+const sg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+const eo=t=>1-Math.pow(1-t,3);
+const ei=t=>t*t*t;
+const eio=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function cap(t,a,b){const fi=0.34,fo=0.30;
+  if(t<a)return 0; if(t<a+fi)return eio(sg(t,a,a+fi));
+  if(t<b)return 1; if(t<b+fo)return 1-eio(sg(t,b,b+fo)); return 0;}
+
+const CW=new THREE.Color(0xfff6e6), CO=new THREE.Color(0xff9a3c),
+      CR=new THREE.Color(0x8e2a16), CB=new THREE.Color(0x3f6fb8);
+
+window.renderFrame=function(t){
+  // ================= camera
+  let cz, cy=0;
+  if(t<T.reveal){                       // extreme close-up on the ember
+    const k=eio(sg(t,0,T.reveal)); cz=3.0+k*2.2;
+  }else if(t<T.collapse){               // pull back: it is a star
+    const k=eio(sg(t,T.reveal,T.collapse)); cz=5.2+k*12.0;
+  }else if(t<T.boom){                   // tighten as it collapses
+    const k=eio(sg(t,T.collapse,T.boom)); cz=17.2-k*5.4;
+  }else if(t<T.disk){                   // blasted back by the shockwave
+    const k=eo(sg(t,T.boom,T.disk)); cz=11.8+k*58.0;
+  }else if(t<T.heart){                  // settle over the forming world
+    const k=eio(sg(t,T.disk,T.heart)); cz=69.8-k*33.5;
+  }else{                                // slow drift in on the heartbeat
+    const k=eio(sg(t,T.heart,DUR)); cz=36.3-k*7.0;
+  }
+  const shake=t>T.boom&&t<T.boom+0.9?(1-sg(t,T.boom,T.boom+0.9))*0.42:0;
+  camera.position.set(Math.sin(t*0.13)*cz*0.05+Math.sin(t*37)*shake,
+                      cy+Math.sin(t*0.11)*cz*0.03+Math.cos(t*41)*shake, cz);
+  camera.lookAt(0,0,0); camera.updateMatrixWorld();
+
+  // ================= starfield
+  starfield.material.opacity=cl(eio(sg(t,2.2,5.4))*1.0,0,1);
+  starfield.visible=starfield.material.opacity>0.004;
+  starfield.rotation.y=t*0.006;
+
+  // ================= star body
+  const collapse=eio(sg(t,T.collapse,T.boom));          // 0..1 shrink
+  const alive=t<T.boom;
+  let R=1.0;
+  if(t<T.reveal){ R=0.55+0.035*Math.sin(t*3.4); }
+  else { R=0.55+eio(sg(t,T.reveal,T.collapse))*2.35; }
+  R*=(1-collapse*0.93);
+  const pulse=1+0.05*Math.sin(t*(2.2+collapse*22));
+  starMesh.visible=alive; starMesh.scale.setScalar(Math.max(0.0001,R*pulse));
+  starMesh.rotation.y=t*0.09; starTex.offset.x=t*0.012;
+  const heatK=collapse;
+  starMat.color.copy(CO).lerp(CW,0.25+heatK*0.75);
+  corona.visible=alive;
+  corona.material.opacity=alive?(0.55+0.45*eio(sg(t,0,2.5)))*(1-collapse*0.25):0;
+  corona.scale.setScalar(Math.max(0.001,R*(5.2-collapse*1.6)*pulse));
+  corona.material.color.copy(CO).lerp(CW,0.15+heatK*0.8);
+
+  // ================= flash + shockwave
+  let fl=0;
+  if(t>=T.boom&&t<T.boom+0.62){
+    const k=sg(t,T.boom,T.boom+0.34); fl=Math.pow(1-k,5.0);
+  }else if(t>T.boom-0.14&&t<T.boom){ fl=Math.pow(sg(t,T.boom-0.14,T.boom),2)*0.22; }
+  flashEl.style.opacity=fl.toFixed(3);
+  if(t>=T.boom&&t<T.disk+1.5){
+    const k=sg(t,T.boom,T.disk+1.5);
+    shock.visible=true;
+    shock.material.opacity=Math.pow(1-k,2.2)*0.62;
+    shock.scale.setScalar(2+eo(k)*190);
+  } else { shock.visible=false; shock.material.opacity=0; }
+
+  // ================= the matter
+  const tb=t-T.boom;
+  const toDisk=eio(sg(t,T.disk-1.4,T.form));
+  const toPlanet=eio(sg(t,T.form,T.heart-0.5));
+  const vis=t>T.boom-0.1;
+  pts.visible=vis;
+  pts.material.opacity=vis?cl(sg(t,T.boom-0.08,T.boom+0.16)*(1-toPlanet*0.55),0,1):0;
+  pts.material.size=0.54+ (1-toPlanet)*0.26;
+  if(vis){
+    const PR=5.6;   // planet radius
+    for(let i=0;i<N;i++){
+      const i3=i*3;
+      // explosion
+      const dcy=1-Math.exp(-Math.max(tb,0)*0.42);
+      const sp=spd[i]*2.35;
+      let ex=dir[i3]*sp*dcy, ey=dir[i3+1]*sp*dcy, ez=dir[i3+2]*sp*dcy;
+      const curl=Math.max(tb,0)*0.16*(0.4+jit[i]);
+      const cs=Math.cos(curl), sn=Math.sin(curl);
+      const rx=ex*cs-ez*sn, rz=ex*sn+ez*cs; ex=rx; ez=rz;
+      // disk slot
+      const ang=dsk[i3+1]+t*(1.35/Math.sqrt(dsk[i3]))*2.4;
+      const dx=Math.cos(ang)*dsk[i3], dz=Math.sin(ang)*dsk[i3], dy=dsk[i3+2];
+      // planet point
+      const px=pln[i3]*PR, py=pln[i3+1]*PR, pz=pln[i3+2]*PR;
+      let x=ex+(dx-ex)*toDisk, y=ey+(dy-ey)*toDisk, z=ez+(dz-ez)*toDisk;
+      x+=(px-x)*toPlanet; y+=(py-y)*toPlanet; z+=(pz-z)*toPlanet;
+      pos[i3]=x; pos[i3+1]=y; pos[i3+2]=z;
+      // temperature: white-hot -> orange -> cooled iron -> planet blue
+      const age=cl(Math.max(tb,0)/3.1,0,1);
+      let cr,cg2,cb;
+      if(age<0.30){ const k=age/0.30;
+        cr=CW.r+(CO.r-CW.r)*k; cg2=CW.g+(CO.g-CW.g)*k; cb=CW.b+(CO.b-CW.b)*k; }
+      else { const k=(age-0.30)/0.70;
+        cr=CO.r+(CR.r-CO.r)*k; cg2=CO.g+(CR.g-CO.g)*k; cb=CO.b+(CR.b-CO.b)*k; }
+      const bk=toPlanet*0.8;
+      cr+=(CB.r-cr)*bk; cg2+=(CB.g-cg2)*bk; cb+=(CB.b-cb)*bk;
+      const tw=0.72+0.28*Math.sin(t*5.0+jit[i]*31.0);
+      col[i3]=cr*tw; col[i3+1]=cg2*tw; col[i3+2]=cb*tw;
+    }
+    pg.attributes.position.needsUpdate=true;
+    pg.attributes.color.needsUpdate=true;
+  }
+
+  // ================= planet + heartbeat
+  const pk=eio(sg(t,T.form+0.5,T.heart));
+  planet.visible=pk>0.001; planet.scale.setScalar(5.56);
+  planetMat.opacity=pk*0.96;
+  planet.rotation.y=t*0.10;
+  atmo.visible=pk>0.001; atmo.material.opacity=pk*0.5; atmo.scale.setScalar(5.56*3.1);
+  // the heartbeat: two beats per cycle, like a real pulse
+  const hb=(()=>{const per=0.92, u=((t-T.heart)%per+per)%per;
+    const a=Math.exp(-u*11), b=Math.exp(-Math.max(u-0.26,0)*13)*0.6;
+    return Math.max(a,b);})();
+  const hk=eio(sg(t,T.heart-0.4,T.heart+0.5));
+  heart.visible=hk>0.001;
+  heart.material.opacity=hk*(0.30+hb*0.75);
+  heart.scale.setScalar(5.56*(1.25+hb*0.55));
+  heart.material.color.setRGB(1.0,0.48+hb*0.22,0.22);
+
+  renderer.toneMappingExposure=1.0+ (t>T.boom&&t<T.boom+1.2?(1-sg(t,T.boom,T.boom+1.2))*0.5:0);
+
+  // ================= captions
+  CAPS.forEach(([id,a,b])=>{const o=cap(t,a,b);
+    els[id].style.opacity=o.toFixed(3);
+    els[id].style.transform='translateY('+((1-o)*20).toFixed(2)+'px)';});
+  handleEl.style.opacity=(eio(sg(t,T.outro,T.outro+0.9))*cl(1-sg(t,DUR-0.3,DUR),0,1)*0.85).toFixed(3);
+  gc.style.opacity=(0.045+0.01*Math.sin(t*13.7)).toFixed(4);
+  renderer.render(scene,camera);
+};
+window.META={W,H,FPS,DUR}; window.READY=true;
+</script></body></html>

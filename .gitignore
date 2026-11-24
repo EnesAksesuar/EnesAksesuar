@@ -1,0 +1,4 @@
+node_modules/
+studio/voice/*.onnx
+studio/yayinci/*.token
+out/

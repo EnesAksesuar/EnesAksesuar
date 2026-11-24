@@ -1,0 +1,23 @@
+{
+  "name": "enesaksesuar",
+  "version": "1.0.0",
+  "description": "AI-powered Etsy SEO, optimization and marketplace automation platform.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EnesAksesuar/EnesAksesuar.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/EnesAksesuar/EnesAksesuar/issues"
+  },
+  "homepage": "https://github.com/EnesAksesuar/EnesAksesuar#readme",
+  "dependencies": {
+    "three": "^0.169.0"
+  }
+}
